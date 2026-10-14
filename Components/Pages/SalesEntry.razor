@@ -1,0 +1,356 @@
+﻿@page "/sales-entry"
+@page "/sales-entry/{Id:int}"
+@using Microsoft.EntityFrameworkCore
+@inject NavigationManager NavManager
+@inject IDbContextFactory<SMS.Data.AppDbContext> DbFactory
+@inject SMS.Services.SaveActionService SaveService
+@implements IDisposable
+
+
+<div class="entry-container">
+    @if (!string.IsNullOrEmpty(statusMessage))
+    {
+        <div style="color: red; padding: 8px 24px; font-size: 14px;">@statusMessage</div>
+    }
+
+    <!-- Header Fields -->
+    <div class="header-inputs">
+        <div class="input-row">
+            <label class="field-label">Date.</label>
+            <input type="text" class="underline-input" value="@currentDate.ToString("dd/MM/yyyy")" readonly />
+        </div>
+
+        <div class="input-row">
+            <label class="field-label">Invoice No.</label>
+            <div class="invoice-field-wrapper">
+                <input type="text" class="underline-input" value="@invoiceNo" readonly />
+                
+            </div>
+        </div>
+
+        <!-- Add Detail Button & Anchored Popup Card -->
+        <div class="add-detail-wrapper">
+            <button class="add-detail-btn" @onclick="ToggleDetailModal">
+                Add Detail
+            </button>
+
+            @if (showDetailModal)
+            {
+                <div class="detail-card">
+                    <div class="card-field-row">
+                        <label class="card-label">Invoice No.</label>
+                        <input type="text" class="card-input" value="@invoiceNo" readonly />
+                    </div>
+                    <div class="card-field-row">
+                        <label class="card-label">Date</label>
+                        <input type="text" class="card-input" value="@currentDate.ToString("dd/MM/yyyy")" readonly />
+                    </div>
+                    <div class="card-field-row">
+                        <label class="card-label">Code</label>
+                        <input type="text"
+                               class="card-input"
+                               list="stockCodeListSales"
+                               value="@modalCode"
+                               @onchange="OnStockCodeChanged" />
+                        <datalist id="stockCodeListSales">
+                            @foreach (var s in availableStockItems)
+                            {
+                                <option value="@s.StockCode">@s.Description</option>
+                            }
+                        </datalist>
+                    </div>
+                    <div class="card-field-row">
+                        <label class="card-label">Description</label>
+                        <input type="text" class="card-input" @bind="modalDescription" />
+                    </div>
+                    <div class="card-field-row">
+                        <label class="card-label">QTY</label>
+                        <input type="number" class="card-input" @bind="modalQty" />
+                    </div>
+                    <div class="card-field-row">
+                        <label class="card-label">Price</label>
+                        <input type="number" class="card-input" @bind="modalPrice" />
+                    </div>
+
+                    <div class="card-action-row">
+                        <button class="card-add-btn" @onclick="AddItemToList">
+                            Add
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    @if (showDetailModal)
+    {
+        <div class="backdrop" @onclick="ToggleDetailModal"></div>
+    }
+
+    <!-- Line Items Table -->
+    <div class="table-wrapper">
+        <table class="detail-table">
+            <thead>
+                <tr>
+                    <th class="col-sr">Sr</th>
+                    <th class="col-code">Stock Code</th>
+                    <th class="col-desc">Description</th>
+                    <th class="col-qty">Qty</th>
+                    <th class="col-price">Price</th>
+                    <th class="col-amount">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in saleItems)
+                {
+                    <tr>
+                        <td class="col-sr">@item.Sr</td>
+                        <td class="col-code">@item.StockCode</td>
+                        <td class="col-desc">@item.Description</td>
+                        <td class="col-qty">@item.Qty</td>
+                        <td class="col-price">@item.Price.ToString("N0")</td>
+                        <td class="col-amount">@item.Amount.ToString("N0")</td>
+                    </tr>
+                }
+                <tr class="spacer-row">
+                    <td class="col-sr"></td>
+                    <td class="col-code"></td>
+                    <td class="col-desc"></td>
+                    <td class="col-qty"></td>
+                    <td class="col-price"></td>
+                    <td class="col-amount"></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Fixed Bottom Totals Bar -->
+    <footer class="bottom-totals-bar">
+        <div class="totals-left-group">
+            <div class="total-row">
+                <span class="total-label">Total QTY</span>
+                <span class="total-value">@TotalQuantity</span>
+            </div>
+            <div class="total-row">
+                <span class="total-label">Total Amount</span>
+                <span class="total-value">@TotalAmount.ToString("N0")</span>
+            </div>
+        </div>
+    </footer>
+</div>
+
+@code {
+    [Parameter]
+    public int? Id { get; set; }
+
+    public class DetailItemViewModel
+    {
+        public int Sr { get; set; }
+        public string StockCode { get; set; } = "";
+        public string Description { get; set; } = "";
+        public int Qty { get; set; }
+        public decimal Price { get; set; }
+        public decimal Amount => Qty * Price;
+    }
+
+    private DateTime currentDate = DateTime.UtcNow;
+    private string invoiceNo = "Sal-0001";
+    private bool showDetailModal = false;
+    private string statusMessage = "";
+
+    private string modalCode = "";
+    private string modalDescription = "";
+    private int modalQty = 1;
+    private decimal modalPrice = 0;
+
+    private List<DetailItemViewModel> saleItems = new();
+    private List<SMS.Data.StockItemEntity> availableStockItems = new();
+
+    private int TotalQuantity => saleItems.Sum(x => x.Qty);
+    private decimal TotalAmount => saleItems.Sum(x => x.Amount);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await using var context = await DbFactory.CreateDbContextAsync();
+        SaveService.SetSaveVisible(true, HandleSave);
+
+        // Load stock items created in Setup module
+        availableStockItems = await context.StockItems
+            .OrderBy(s => s.StockCode)
+            .ToListAsync();
+
+        if (Id.HasValue && Id.Value > 0)
+        {
+            var existing = await context.Sales
+                .Include(s => s.Details)
+                .FirstOrDefaultAsync(s => s.Id == Id.Value);
+
+            if (existing != null)
+            {
+                invoiceNo = existing.InvoiceNo;
+                currentDate = existing.SaleDate;
+                saleItems = existing.Details.Select((d, idx) => new DetailItemViewModel
+                {
+                    Sr = idx + 1,
+                    StockCode = d.StockCode,
+                    Description = d.Description ?? "",
+                    Qty = d.Qty,
+                    Price = d.Price
+                }).ToList();
+            }
+        }
+        else
+        {
+            // Reset items for a fresh entry
+            saleItems.Clear();
+            currentDate = DateTime.UtcNow;
+
+            // Fetch the latest invoice to accurately determine the next sequence number
+            var lastInvoice = await context.Sales
+                .OrderByDescending(s => s.Id)
+                .Select(s => s.InvoiceNo)
+                .FirstOrDefaultAsync();
+
+            int nextNum = 1;
+            if (!string.IsNullOrEmpty(lastInvoice))
+            {
+                var digits = new string(lastInvoice.Where(char.IsDigit).ToArray());
+                if (int.TryParse(digits, out int parsed))
+                {
+                    nextNum = parsed + 1;
+                }
+            }
+
+            invoiceNo = $"Sal-{nextNum:D4}";
+        }
+    }
+
+    public void Dispose()
+    {
+        SaveService.SetSaveVisible(false);
+    }
+
+    private void ToggleDetailModal() => showDetailModal = !showDetailModal;
+
+    private void OnStockCodeChanged(ChangeEventArgs e)
+    {
+        modalCode = e.Value?.ToString() ?? "";
+        var match = availableStockItems.FirstOrDefault(s => s.StockCode.Equals(modalCode.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (match != null)
+        {
+            modalDescription = match.Description ?? "";
+        }
+    }
+
+    private void AddItemToList()
+    {
+        if (string.IsNullOrWhiteSpace(modalCode))
+        {
+            statusMessage = "Please enter or select a stock code.";
+            return;
+        }
+
+        saleItems.Add(new DetailItemViewModel
+        {
+            Sr = saleItems.Count + 1,
+            StockCode = modalCode.Trim(),
+            Description = modalDescription.Trim(),
+            Qty = modalQty,
+            Price = modalPrice
+        });
+
+        modalCode = "";
+        modalDescription = "";
+        modalQty = 1;
+        modalPrice = 0;
+        showDetailModal = false;
+        statusMessage = "";
+    }
+
+    public async Task HandleDelete()
+    {
+        await using var context = await DbFactory.CreateDbContextAsync();
+        if (!Id.HasValue) return;
+
+        try
+        {
+            var existing = await context.Sales.FindAsync(Id.Value);
+            if (existing != null)
+            {
+                context.Sales.Remove(existing);
+                await context.SaveChangesAsync();
+                NavManager.NavigateTo("sales");
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Error deleting: {ex.Message}";
+        }
+    }
+
+    public async Task HandleSave()
+    {
+        await using var context = await DbFactory.CreateDbContextAsync();
+        if (!saleItems.Any())
+        {
+            statusMessage = "Please add at least one item before saving.";
+            StateHasChanged();
+            return;
+        }
+
+        try
+        {
+            if (Id.HasValue && Id.Value > 0)
+            {
+                var existing = await context.Sales
+                    .Include(s => s.Details)
+                    .FirstOrDefaultAsync(s => s.Id == Id.Value);
+
+                if (existing != null)
+                {
+                    existing.SaleDate = DateTime.SpecifyKind(currentDate.Date, DateTimeKind.Utc);
+                    existing.TotalQty = TotalQuantity;
+                    existing.TotalAmount = TotalAmount;
+
+                    context.SaleDetails.RemoveRange(existing.Details);
+                    existing.Details = saleItems.Select(x => new SMS.Data.SaleDetailEntity
+                    {
+                        SaleId = existing.Id,
+                        StockCode = x.StockCode,
+                        Description = x.Description,
+                        Qty = x.Qty,
+                        Price = x.Price
+                    }).ToList();
+                }
+            }
+            else
+            {
+                var sale = new SMS.Data.SaleEntity
+                {
+                    InvoiceNo = invoiceNo,
+                    SaleDate = DateTime.SpecifyKind(currentDate.Date, DateTimeKind.Utc),
+                    TotalQty = TotalQuantity,
+                    TotalAmount = TotalAmount,
+                    Details = saleItems.Select(x => new SMS.Data.SaleDetailEntity
+                    {
+                        StockCode = x.StockCode,
+                        Description = x.Description,
+                        Qty = x.Qty,
+                        Price = x.Price
+                    }).ToList()
+                };
+                context.Sales.Add(sale);
+            }
+
+            await context.SaveChangesAsync();
+            NavManager.NavigateTo("sales");
+        }
+        catch (Exception ex)
+        {
+            var inner = ex;
+            while (inner.InnerException != null) inner = inner.InnerException;
+            statusMessage = $"Error saving: {inner.Message}";
+            StateHasChanged();
+        }
+    }
+}

@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="LICENSE.txt" />
+  </Folder>
+  <Project Path="../SMSApi/SMSApi.csproj" Id="8c68da6c-68f8-4ee7-8245-88e036bfd161" />
+  <Project Path="../SMSShared/SMSShared.csproj" Id="e62a300c-9ce9-447a-8358-131f7ae6e6d7" />
+  <Project Path="SMS.csproj">
+    <Deploy Solution="Debug|*" />
+  </Project>
+</Solution>

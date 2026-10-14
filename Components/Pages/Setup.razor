@@ -1,0 +1,167 @@
+﻿@page "/setup"
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<SMS.Data.AppDbContext> DbFactory
+
+
+<div class="setup-container">
+    @if (!string.IsNullOrEmpty(statusMessage))
+    {
+        <div class="status-banner @(isError ? "error" : "success")">
+            @statusMessage
+        </div>
+    }
+
+    <!-- Add New Stock Code Form -->
+    <div class="form-card">
+        <h3 class="card-title">Add New Stock Code</h3>
+        <div class="form-row">
+            <div class="field-group">
+                <label>Stock Code</label>
+                <input type="text" class="setup-input" placeholder="e.g. 1001" @bind="newCode" />
+            </div>
+            <div class="field-group desc-field">
+                <label>Description</label>
+                <input type="text" class="setup-input" placeholder="e.g. Book / Pen" @bind="newDescription" />
+            </div>
+            <button class="add-btn" @onclick="HandleAddStockItem">
+                + Add Item
+            </button>
+        </div>
+    </div>
+
+    <!-- Items Grid -->
+    <div class="table-wrapper">
+        <table class="setup-table">
+            <thead>
+                <tr>
+                    <th class="col-sr">Sr</th>
+                    <th class="col-code">Stock Code</th>
+                    <th class="col-desc">Description</th>
+                    <th class="col-action">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!stockList.Any())
+                {
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: #888; padding: 24px;">No stock items found. Add one above.</td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var item in stockList.Select((val, idx) => new { val, idx }))
+                    {
+                        <tr>
+                            <td class="col-sr">@(item.idx + 1)</td>
+                            <td class="col-code">@item.val.StockCode</td>
+                            <td class="col-desc">@item.val.Description</td>
+                            <td class="col-action">
+                                <button class="delete-icon-btn" @onclick="() => HandleDeleteItem(item.val.Id)" title="Delete Item">
+                                    &#128465;
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Bottom Counter Bar -->
+    <footer class="bottom-bar">
+        <span class="total-label">Total Registered Items:</span>
+        <span class="total-count">@stockList.Count</span>
+    </footer>
+</div>
+
+@code {
+    private List<SMS.Data.StockItemEntity> stockList = new();
+    private string newCode = "";
+    private string newDescription = "";
+    private string statusMessage = "";
+    private bool isError = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadStockItems();
+    }
+
+    private async Task LoadStockItems()
+    {
+        await using var context = await DbFactory.CreateDbContextAsync();
+        try
+        {
+            stockList = await context.StockItems
+                .OrderBy(s => s.StockCode)
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Error loading data: {ex.Message}", true);
+        }
+    }
+
+    private async Task HandleAddStockItem()
+    {
+        await using var context = await DbFactory.CreateDbContextAsync();
+        if (string.IsNullOrWhiteSpace(newCode))
+        {
+            SetStatus("Stock code cannot be empty.", true);
+            return;
+        }
+
+        try
+        {
+            var exists = await context.StockItems.AnyAsync(s => s.StockCode.ToLower() == newCode.Trim().ToLower());
+            if (exists)
+            {
+                SetStatus($"Stock Code '{newCode}' already exists.", true);
+                return;
+            }
+
+            var item = new SMS.Data.StockItemEntity
+            {
+                StockCode = newCode.Trim(),
+                Description = newDescription.Trim()
+            };
+
+            context.StockItems.Add(item);
+            await context.SaveChangesAsync();
+
+            newCode = "";
+            newDescription = "";
+            SetStatus("Item saved successfully.", false);
+            await LoadStockItems();
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Error saving item: {ex.Message}", true);
+        }
+    }
+
+    private async Task HandleDeleteItem(int id)
+    {
+        await using var context = await DbFactory.CreateDbContextAsync();
+        try
+        {
+            var item = await context.StockItems.FindAsync(id);
+            if (item != null)
+            {
+                context.StockItems.Remove(item);
+                await context.SaveChangesAsync();
+                SetStatus("Item removed.", false);
+                await LoadStockItems();
+            }
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Error deleting: {ex.Message}", true);
+        }
+    }
+
+    private void SetStatus(string message, bool error)
+    {
+        statusMessage = message;
+        isError = error;
+    }
+}

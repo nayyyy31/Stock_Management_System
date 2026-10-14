@@ -1,0 +1,102 @@
+﻿@inherits LayoutComponentBase
+@implements IDisposable
+@inject NavigationManager NavManager
+@inject SMS.Services.SaveActionService SaveService
+
+
+<div class="app-container">
+    <!-- Top Bar -->
+    <header class="top-bar">
+        <div class="menu-container">
+            <button class="menu-btn" @onclick="ToggleMenu" aria-label="Toggle Menu">
+                <span class="menu-icon">&#9776;</span>
+            </button>
+
+            <!-- Popup Card Menu -->
+            @if (isMenuOpen)
+            {
+                <div class="dropdown-card">
+                    <NavLink style="display: block; width: 100%; color: #000000; text-decoration: none; background: #ffffff; padding: 12px 20px;"
+                             href="setup" @onclick="CloseMenu">Setup</NavLink>
+
+                    <NavLink style="display: block; width: 100%; color: #000000; text-decoration: none; background: #ffffff; padding: 12px 20px;"
+                             href="pur" @onclick="CloseMenu">Purchase</NavLink>
+
+                    <NavLink style="display: block; width: 100%; color: #000000; text-decoration: none; background: #ffffff; padding: 12px 20px;"
+                             href="sales" @onclick="CloseMenu">Sales</NavLink>
+
+                    <NavLink style="display: block; width: 100%; color: #000000; text-decoration: none; background: #ffffff; padding: 12px 20px;"
+                             href="report" @onclick="CloseMenu">Report</NavLink>
+                </div>
+            }
+        </div>
+
+        <!-- Dynamic Title -->
+        <span class="app-title">@(isMenuOpen ? "Title" : GetPageTitle())</span>
+
+        <!-- Top Right Save Button (visible only on entry screens) -->
+        @if (SaveService.IsSaveVisible)
+        {
+            <button class="top-save-btn" @onclick="TriggerSave">
+                <span class="top-save-icon">&#128190;</span>
+                <span class="top-save-text">Save</span>
+            </button>
+        }
+    </header>
+
+    <!-- Tap-away Backdrop for Dropdown Menu -->
+    @if (isMenuOpen)
+    {
+        <div class="backdrop" @onclick="CloseMenu"></div>
+    }
+
+    <!-- Main Content Area -->
+    <main class="content-body">
+        @Body
+    </main>
+</div>
+
+@code {
+    private bool isMenuOpen = false;
+
+    protected override void OnInitialized()
+    {
+        // Re-render layout whenever SaveService visibility changes
+        SaveService.OnVisibilityChanged += OnSaveVisibilityChanged;
+    }
+
+    private void OnSaveVisibilityChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void ToggleMenu()
+    {
+        isMenuOpen = !isMenuOpen;
+    }
+
+    private void CloseMenu()
+    {
+        isMenuOpen = false;
+    }
+
+    private async Task TriggerSave()
+    {
+        await SaveService.TriggerSaveAsync();
+    }
+
+    private string GetPageTitle()
+    {
+        var uri = NavManager.ToBaseRelativePath(NavManager.Uri).ToLower();
+        if (uri.StartsWith("purchase")) return "Purchase";
+        if (uri.StartsWith("sales")) return "Sales";
+        if (uri.StartsWith("setup")) return "Setup";
+        if (uri.StartsWith("report")) return "Report";
+        return "Galaxy Testing";
+    }
+
+    public void Dispose()
+    {
+        SaveService.OnVisibilityChanged -= OnSaveVisibilityChanged;
+    }
+}

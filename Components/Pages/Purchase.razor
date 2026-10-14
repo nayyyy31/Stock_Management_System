@@ -1,0 +1,98 @@
+﻿@page "/pur"
+@using Microsoft.EntityFrameworkCore
+@inject NavigationManager NavManager
+@inject IDbContextFactory<SMS.Data.AppDbContext> DbFactory
+
+
+<div class="purchase-container">
+    <div class="table-wrapper">
+        <table class="purchase-table">
+            <thead>
+                <tr>
+                    <th class="col-date">Date</th>
+                    <th class="col-inv">Invoice No</th>
+                    <th class="col-qty">QTY</th>
+                    <th class="col-amount">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in purchaseHistory)
+                {
+                    var current = item;
+                    <tr class="@(selectedItem?.Id == current.Id ? "selected-row" : null)"
+                        @onclick="() => SelectRow(current)">
+                        <td class="col-date" @onclick="() => SelectRow(current)">@current.PurchaseDate.ToString("dd/MM/yyyy")</td>
+                        <td class="col-inv" @onclick="() => SelectRow(current)">@current.InvoiceNo</td>
+                        <td class="col-qty" @onclick="() => SelectRow(current)">@current.TotalQty</td>
+                        <td class="col-amount" @onclick="() => SelectRow(current)">@current.TotalAmount.ToString("N0")</td>
+                    </tr>
+                }
+                <tr class="spacer-row">
+                    <td class="col-date"></td>
+                    <td class="col-inv"></td>
+                    <td class="col-qty"></td>
+                    <td class="col-amount"></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <footer class="bottom-bar">
+        <div class="action-buttons">
+            <button class="icon-btn" @onclick="HandleNewPurchase">
+                <span class="icon">&#65291;</span>
+                <span class="label">New</span>
+            </button>
+            <button class="icon-btn" @onclick="HandleEditPurchase" disabled="@(selectedItem == null)">
+                <span class="icon">&#9998;</span>
+                <span class="label">Edit</span>
+            </button>
+        </div>
+
+        <div class="totals-display">
+            <span class="total-qty">@TotalQuantity</span>
+            <span class="total-amount">@TotalAmount.ToString("N0")</span>
+        </div>
+    </footer>
+</div>
+
+@code {
+    private List<SMS.Data.PurchaseEntity> purchaseHistory = new();
+    private SMS.Data.PurchaseEntity? selectedItem;
+
+    private int TotalQuantity => purchaseHistory.Sum(x => x.TotalQty);
+    private decimal TotalAmount => purchaseHistory.Sum(x => x.TotalAmount);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPurchases();
+    }
+
+    private async Task LoadPurchases()
+    {
+        await using var context = await DbFactory.CreateDbContextAsync();
+        purchaseHistory = await context.Purchases
+            .AsNoTracking()
+            .OrderByDescending(p => p.InvoiceNo)
+            .ToListAsync();
+    }
+
+    private void SelectRow(SMS.Data.PurchaseEntity item)
+    {
+        selectedItem = item;
+        StateHasChanged();
+    }
+
+    private void HandleNewPurchase()
+    {
+        NavManager.NavigateTo("purchase-entry");
+    }
+
+    private void HandleEditPurchase()
+    {
+        if (selectedItem != null)
+        {
+            NavManager.NavigateTo($"purchase-edit/{selectedItem.Id}");
+        }
+    }
+}

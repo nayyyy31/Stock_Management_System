@@ -1,0 +1,250 @@
+﻿@page "/report"
+@using System.Text
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<SMS.Data.AppDbContext> DbFactory
+@inject IServiceProvider ServiceProvider
+
+<div class="report-page">
+    <!-- 1. Header Segmented Tabs -->
+    <header class="report-tabs">
+        <button type="button"
+                class="tab-btn @(activeTab == "Purchase" ? "active" : "")"
+                @onclick='() => SetActiveTab("Purchase")'>
+            Purchase
+        </button>
+        <button type="button"
+                class="tab-btn @(activeTab == "Sale" ? "active" : "")"
+                @onclick='() => SetActiveTab("Sale")'>
+            Sale
+        </button>
+    </header>
+
+    <!-- 2. Top Card Filters -->
+    <section class="filter-card">
+        <div class="date-row">
+            <div class="date-field">
+                <label class="field-label">From</label>
+                <input type="date" class="form-input" @bind="fromDate" />
+            </div>
+            <div class="date-field">
+                <label class="field-label">To</label>
+                <input type="date" class="form-input" @bind="toDate" />
+            </div>
+        </div>
+
+        <div class="actions-row">
+            <button type="button" class="btn btn-search" @onclick="ExecuteSearch" disabled="@isLoading">
+                @(isLoading ? "Searching..." : "Search")
+            </button>
+            <button type="button" class="btn btn-print" @onclick="ExecutePrint" disabled="@(!displayList.Any() || isLoading)">
+                Print
+            </button>
+        </div>
+    </section>
+
+    @if (!string.IsNullOrEmpty(statusMessage))
+    {
+        <div class="alert-banner">
+            @statusMessage
+        </div>
+    }
+
+    <!-- 3. Clean Table Display -->
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th class="col-date">Date</th>
+                    <th class="col-inv">Invoice No</th>
+                    <th class="col-qty">QTY</th>
+                    <th class="col-amount">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (isLoading)
+                {
+                    <tr>
+                        <td colspan="4" class="empty-state">Loading records...</td>
+                    </tr>
+                }
+                else if (!displayList.Any())
+                {
+                    <tr>
+                        <td colspan="4" class="empty-state">No records found for the selected period.</td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var item in displayList)
+                    {
+                        <tr>
+                            <td class="col-date">@item.Date.ToString("dd/MM/yyyy")</td>
+                            <td class="col-inv">@item.InvoiceNo</td>
+                            <td class="col-qty">@item.TotalQty</td>
+                            <td class="col-amount">@item.TotalAmount.ToString("N0")</td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 4. Bottom Summary Bar -->
+    <footer class="summary-footer">
+        <div class="summary-item">
+            <span class="summary-label">Total QTY:</span>
+            <span class="summary-val">@TotalQuantity</span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-label">Total Amount:</span>
+            <span class="summary-val summary-highlight">@TotalAmount.ToString("N0")</span>
+        </div>
+    </footer>
+</div>
+
+@code {
+    public class ReportItem
+    {
+        public DateTime Date { get; set; }
+        public string InvoiceNo { get; set; } = string.Empty;
+        public int TotalQty { get; set; }
+        public decimal TotalAmount { get; set; }
+    }
+
+    private string activeTab = "Purchase";
+    private DateTime fromDate = DateTime.Today.AddDays(-30);
+    private DateTime toDate = DateTime.Today;
+    private bool isLoading = false;
+    private string statusMessage = string.Empty;
+
+    private List<ReportItem> displayList = new();
+
+    private int TotalQuantity => displayList.Sum(x => x.TotalQty);
+    private decimal TotalAmount => displayList.Sum(x => x.TotalAmount);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ExecuteSearch();
+    }
+
+    private async Task SetActiveTab(string tab)
+    {
+        if (activeTab != tab)
+        {
+            activeTab = tab;
+            await ExecuteSearch();
+        }
+    }
+
+    private async Task ExecuteSearch()
+    {
+        if (isLoading) return;
+
+        isLoading = true;
+        statusMessage = string.Empty;
+
+        var start = DateTime.SpecifyKind(fromDate.Date, DateTimeKind.Utc);
+        var end = DateTime.SpecifyKind(toDate.Date.AddDays(1).AddTicks(-1), DateTimeKind.Utc);
+        var targetTab = activeTab;
+
+        try
+        {
+            await using var context = await DbFactory.CreateDbContextAsync();
+
+            if (targetTab == "Purchase")
+            {
+                displayList = await context.Purchases
+                    .AsNoTracking()
+                    .Where(p => p.PurchaseDate >= start && p.PurchaseDate <= end)
+                    .OrderByDescending(p => p.InvoiceNo)
+                    .Select(p => new ReportItem
+                    {
+                        Date = p.PurchaseDate,
+                        InvoiceNo = p.InvoiceNo,
+                        TotalQty = p.TotalQty,
+                        TotalAmount = p.TotalAmount
+                    })
+                    .ToListAsync();
+            }
+            else
+            {
+                displayList = await context.Sales
+                    .AsNoTracking()
+                    .Where(s => s.SaleDate >= start && s.SaleDate <= end)
+                    .OrderByDescending(s => s.InvoiceNo)
+                    .Select(s => new ReportItem
+                    {
+                        Date = s.SaleDate,
+                        InvoiceNo = s.InvoiceNo,
+                        TotalQty = s.TotalQty,
+                        TotalAmount = s.TotalAmount
+                    })
+                    .ToListAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = ex.InnerException?.Message ?? ex.Message;
+            displayList.Clear();
+        }
+        finally
+        {
+            isLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task ExecutePrint()
+    {
+        try
+        {
+            var printService = ServiceProvider.GetService(typeof(SMS.Services.IPrintService)) as SMS.Services.IPrintService;
+
+            if (printService == null)
+            {
+                statusMessage = "Printing service is not supported on this platform.";
+                return;
+            }
+
+            var sb = new StringBuilder();
+            sb.AppendLine("<!DOCTYPE html><html><head><style>");
+            sb.AppendLine("body { font-family: -apple-system, sans-serif; padding: 20px; font-size: 13px; }");
+            sb.AppendLine("h2 { margin-bottom: 4px; text-transform: uppercase; color: #4a148c; }");
+            sb.AppendLine(".sub { color: #555; margin-bottom: 16px; }");
+            sb.AppendLine("table { width: 100%; border-collapse: collapse; margin-top: 10px; }");
+            sb.AppendLine("th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }");
+            sb.AppendLine("th { background-color: #f2f2f2; font-weight: bold; }");
+            sb.AppendLine(".num { text-align: right; }");
+            sb.AppendLine(".totals { margin-top: 15px; font-size: 14px; font-weight: bold; text-align: right; }");
+            sb.AppendLine("</style></head><body>");
+
+            sb.AppendLine($"<h2>{activeTab} Report</h2>");
+            sb.AppendLine($"<div class='sub'>Period: {fromDate:dd/MM/yyyy} to {toDate:dd/MM/yyyy}</div>");
+
+            sb.AppendLine("<table>");
+            sb.AppendLine("<thead><tr><th>Date</th><th>Invoice No</th><th class='num'>QTY</th><th class='num'>Amount</th></tr></thead>");
+            sb.AppendLine("<tbody>");
+
+            foreach (var item in displayList)
+            {
+                sb.AppendLine($"<tr>" +
+                              $"<td>{item.Date:dd/MM/yyyy}</td>" +
+                              $"<td>{item.InvoiceNo}</td>" +
+                              $"<td class='num'>{item.TotalQty}</td>" +
+                              $"<td class='num'>{item.TotalAmount:N0}</td>" +
+                              $"</tr>");
+            }
+
+            sb.AppendLine("</tbody></table>");
+            sb.AppendLine($"<div class='totals'>Total Quantity: {TotalQuantity} &nbsp;|&nbsp; Total Amount: {TotalAmount:N0}</div>");
+            sb.AppendLine("</body></html>");
+
+            await printService.PrintHtmlAsync(sb.ToString(), $"{activeTab}_Report");
+            statusMessage = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Print failed: {ex.Message}";
+        }
+    }
+}

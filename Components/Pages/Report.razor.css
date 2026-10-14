@@ -1,0 +1,248 @@
+﻿/* Container locked cleanly to viewport height */
+.report-page {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    max-height: 100%;
+    background-color: #f8f9fa;
+    overflow: hidden;
+    position: relative;
+    box-sizing: border-box;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* 1. Header Segmented Tabs */
+.report-tabs {
+    flex-shrink: 0;
+    display: flex;
+    background-color: #ffffff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.06);
+    z-index: 10;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 12px 0;
+    border: none;
+    background: transparent;
+    font-size: 14px;
+    font-weight: 600;
+    color: #6c757d;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s ease;
+}
+
+    .tab-btn.active {
+        color: #4a148c;
+        border-bottom-color: #4a148c;
+        background-color: #faf5ff;
+    }
+
+/* 2. Top Card Filters */
+.filter-card {
+    flex-shrink: 0;
+    background: #ffffff;
+    margin: 8px 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.date-row {
+    display: flex;
+    gap: 10px;
+}
+
+.date-field {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.field-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #495057;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.form-input {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #212529;
+    background-color: #fff;
+    box-sizing: border-box;
+}
+
+.actions-row {
+    display: flex;
+    gap: 12px;
+    margin-top: 2px;
+}
+
+.btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 9px 0;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.btn-search {
+    background-color: #4a148c;
+    color: #ffffff;
+}
+
+.btn-print {
+    background-color: #37474f;
+    color: #ffffff;
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.alert-banner {
+    flex-shrink: 0;
+    margin: 0 10px 6px;
+    padding: 8px 12px;
+    background: #ffebee;
+    color: #c62828;
+    border-radius: 6px;
+    font-size: 12px;
+}
+
+/* 3. Clean Table Display */
+.table-container {
+    flex: 1 1 0%;
+    height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
+    margin: 0 10px 8px;
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    -webkit-overflow-scrolling: touch;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+    .data-table thead th {
+        position: sticky;
+        top: 0;
+        background-color: #e2e8f0;
+        color: #334155;
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        padding: 10px 8px;
+        border-bottom: 1px solid #cbd5e1;
+        z-index: 2;
+    }
+
+    .data-table tbody tr {
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+        .data-table tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+    .data-table tbody td {
+        padding: 11px 8px;
+        font-size: 13px;
+        color: #1e293b;
+        box-sizing: border-box;
+    }
+
+.col-date {
+    width: 26%;
+    text-align: left;
+}
+
+.col-inv {
+    width: 32%;
+    text-align: left;
+    font-weight: 500;
+}
+
+.col-qty {
+    width: 16%;
+    text-align: right;
+}
+
+.col-amount {
+    width: 26%;
+    text-align: right;
+    font-weight: 600;
+    color: #0f172a;
+}
+
+.empty-state {
+    text-align: center;
+    color: #64748b;
+    padding: 36px 12px;
+    font-size: 13px;
+    font-style: italic;
+}
+
+/* 4. Bottom Summary Bar */
+.summary-footer {
+    flex-shrink: 0;
+    height: 52px;
+    min-height: 52px;
+    background-color: #ffffff;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    box-shadow: 0 -2px 6px rgba(0,0,0,0.04);
+    z-index: 10;
+}
+
+.summary-item {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+}
+
+.summary-label {
+    font-size: 13px;
+    color: #64748b;
+}
+
+.summary-val {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.summary-highlight {
+    font-size: 16px;
+    font-weight: 700;
+    color: #4a148c;
+}

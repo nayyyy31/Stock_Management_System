@@ -1,0 +1,174 @@
+﻿.purchase-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    max-height: 100%;
+    overflow: hidden;
+    background-color: #ffffff;
+    box-sizing: border-box;
+}
+
+.table-wrapper {
+    flex: 1 1 0%;
+    height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Table Base Setup */
+.purchase-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+    .purchase-table tbody tr {
+        display: table-row !important;
+        cursor: pointer;
+    }
+
+    /* Header Cells */
+    .purchase-table thead th {
+        position: sticky;
+        top: 0;
+        background-color: #c4c4c4;
+        color: #ffffff;
+        font-size: 16px;
+        font-weight: bold;
+        padding: 10px 14px;
+        border-right: 1px solid #ffffff;
+        border-bottom: 1px solid #b0b0b0;
+        text-align: center;
+        box-sizing: border-box;
+        z-index: 2;
+    }
+
+        .purchase-table thead th:last-child {
+            border-right: none;
+        }
+
+    /* Body Cells */
+    .purchase-table tbody td {
+        display: table-cell !important;
+        padding: 10px 14px;
+        font-size: 15px;
+        color: #222222;
+        border-right: 1px solid #cccccc;
+        border-bottom: 1px solid #e0e0e0;
+        box-sizing: border-box;
+    }
+
+        .purchase-table tbody td:last-child {
+            border-right: none;
+        }
+
+/* Column Widths */
+.col-date {
+    width: 25%;
+    text-align: left;
+}
+
+.col-inv {
+    width: 30%;
+    text-align: left;
+}
+
+.col-qty {
+    width: 20%;
+    text-align: right;
+    padding-right: 20px;
+}
+
+.col-amount {
+    width: 25%;
+    text-align: right;
+    padding-right: 16px;
+}
+
+/* Selected Row Highlight */
+.purchase-table tbody tr.selected-row > td {
+    background-color: #ede7f6 !important;
+}
+
+/* Spacer Row to maintain table flow */
+.purchase-table tbody tr.spacer-row > td {
+    height: auto;
+    border-bottom: none;
+    background-color: transparent !important;
+    cursor: default;
+}
+
+/* Fixed Bottom Bar */
+.bottom-bar {
+    flex-shrink: 0;
+    min-height: 56px;
+    height: 64px;
+    background-color: #cccccc;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    border-top: 1px solid #b5b5b5;
+    z-index: 10;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 16px;
+}
+
+.icon-btn {
+    background: transparent;
+    border: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    padding: 4px 8px;
+    color: #000000;
+}
+
+    .icon-btn:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+    }
+
+    .icon-btn .icon {
+        font-size: 24px;
+        line-height: 1;
+        font-weight: bold;
+    }
+
+    .icon-btn .label {
+        font-size: 12px;
+        margin-top: 2px;
+    }
+
+/* Totals on the right */
+.totals-display {
+    display: flex;
+    align-items: center;
+    width: 50%;
+    justify-content: flex-end;
+}
+
+.total-qty {
+    font-size: 16px;
+    font-weight: bold;
+    color: #000000;
+    width: 40%;
+    text-align: right;
+    padding-right: 20px;
+}
+
+.total-amount {
+    font-size: 16px;
+    font-weight: bold;
+    color: #000000;
+    width: 60%;
+    text-align: right;
+    padding-right: 8px;
+}
